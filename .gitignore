@@ -26,11 +26,6 @@ logs/
 # ── VS Code ───────────────────────────────────────────────────────────────────
 .vscode/
 
-# ── SQL test/dummy data files — not needed in production repo ────────────────
-essl_dummy_data.sql
-essl_dummy_data_2.sql
-essl_dummy_data_3.sql
-run_sql.py
 
 # ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store
