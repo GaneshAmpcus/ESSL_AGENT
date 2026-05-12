@@ -1,0 +1,38 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# ── Virtual environment ───────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+
+# ── Environment / secrets ─────────────────────────────────────────────────────
+.env
+# Keep the example file — it documents required vars without exposing secrets
+!.env.example
+
+# ── Agent state — never commit cursor or audit DB ────────────────────────────
+agent_state.db
+*.db
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+logs/
+*.log
+
+# ── VS Code ───────────────────────────────────────────────────────────────────
+.vscode/
+
+# ── SQL test/dummy data files — not needed in production repo ────────────────
+essl_dummy_data.sql
+essl_dummy_data_2.sql
+essl_dummy_data_3.sql
+run_sql.py
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
