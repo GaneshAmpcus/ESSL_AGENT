@@ -43,3 +43,8 @@ MONTH_OVERLAP_DAYS    = int(os.getenv("MONTH_OVERLAP_DAYS", "3"))
 STATE_DB_PATH = os.getenv("STATE_DB_PATH", "agent_state.db")
 LOG_DIR       = os.getenv("LOG_DIR", "logs")
 LOG_LEVEL     = os.getenv("LOG_LEVEL", "INFO")
+
+
+# ── Device sync ───────────────────────────────────────────────────────────────
+DEVICE_SYNC_INTERVAL_SECONDS = int(os.getenv("DEVICE_SYNC_INTERVAL_SECONDS", "86400"))
+COMPANY_ID                   = _require("COMPANY_ID")

@@ -12,7 +12,7 @@ import argparse
 import sys
 
 import cursor as cursor_store
-from sync import run_sync_cycle
+from sync import run_sync_cycle,sync_devices
 import essl as essl_db
 import hrms as hrms_client
 from logger import get_logger
@@ -83,6 +83,14 @@ def cmd_start() -> None:
     # Run one immediate cycle on startup so we don't wait the full interval
     log.info("Running initial sync before starting scheduler...")
     run_sync_cycle()
+
+    # Optional startup device sync
+    log.info("Running initial device sync before starting scheduler...")
+    sync_devices()
+
+    log.info(
+        "Initial sync complete. Starting scheduled jobs..."
+    )
 
     # Start the scheduler (blocks forever)
     scheduler = build_scheduler()

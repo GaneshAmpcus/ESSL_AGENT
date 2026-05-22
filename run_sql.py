@@ -1,6 +1,6 @@
 from essl import get_connection
 
-with open("essl_dummy_data_3.sql", "r", encoding="utf-8") as f:
+with open("essl_dummy_devices.sql", "r", encoding="utf-8") as f:
     sql = f.read()
 
 # Split SQL Server batches by GO

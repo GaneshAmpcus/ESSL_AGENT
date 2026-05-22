@@ -75,24 +75,25 @@ def normalise_punch(raw_row: dict) -> dict | None:
     direction = att_direction if att_direction != "unknown" else raw_direction
 
     return {
-        # Identity — UserId IS the HRMS employee ID per confirmed schema
-        "employee_id":   user_id,
-
-        # Dedup key — HRMS uses this to prevent double inserts
-        "essl_log_id":   raw_row["DeviceLogId"],          # keep as integer     
-        "source_table":  raw_row.get("source_table", ""), # pass separately
-
+        "employee_code":  user_id,
+    
+        # Dedup key — keep as integer
+        "essl_log_id":    raw_row["DeviceLogId"],
+    
+        # Which ESSL partition table — separate field for dedup
+        "essl_source_table": raw_row.get("source_table", ""),
+    
         # Core punch data
-        "punch_time":    str(log_date),
-        "direction":     direction,
-        "device_id":     raw_row.get("DeviceId"),
-
-        # Location (null if device doesn't capture GPS)
-        "latitude":  _clean_coordinate(raw_row.get("Latitude")),
-        "longitude": _clean_coordinate(raw_row.get("Longitude")),
-
+        "punch_time":     str(log_date),
+        "direction":      direction,
+        "device_id":      raw_row.get("DeviceId"),
+    
+        # Location
+        "latitude":       _clean_coordinate(raw_row.get("Latitude")),
+        "longitude":      _clean_coordinate(raw_row.get("Longitude")),
+    
         # Metadata
-        "source":        "essl",
+        "source":         "essl",
         "raw_created_at": str(raw_row.get("CreatedDate", "")),
     }
 

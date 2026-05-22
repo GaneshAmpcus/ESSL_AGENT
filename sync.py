@@ -186,3 +186,51 @@ def _run_sync_cycle_inner() -> None:
         )
 
     log.info("═" * 60)
+
+
+
+
+
+
+
+def sync_devices():
+    """
+    Sync ESSL devices -> HRMS.
+    """
+    log.info("════════════════════════════════════════════════════════════")
+    log.info("Device sync started.")
+
+    try:
+        devices = essl_db.fetch_devices()
+
+        log.info(
+            "Fetched %d device(s) from ESSL.",
+            len(devices),
+        )
+
+        if not devices:
+            log.info("No devices found in ESSL.")
+            return
+
+        result = hrms_client.push_devices(devices)
+
+        log.info(
+            "HRMS response: created=%d updated=%d",
+            result.get("created", 0),
+            result.get("updated", 0),
+        )
+
+        log.info(
+            "Device sync complete. Pushed %d device(s).",
+            len(devices),
+        )
+
+    except Exception as e:
+        log.error(
+            "Device sync failed: %s",
+            e,
+            exc_info=True,
+        )
+
+    finally:
+        log.info("════════════════════════════════════════════════════════════")

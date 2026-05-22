@@ -18,14 +18,31 @@ log = get_logger(__name__)
 # ── Connection ────────────────────────────────────────────────────────────────
 
 def _build_conn_string() -> str:
-    return (
+    """
+    Builds the pyodbc connection string.
+    Supports both Windows Authentication (Trusted_Connection)
+    and SQL Server Authentication (UID/PWD) based on config.
+    If ESSL_USERNAME is set in .env, SQL Server auth is used.
+    If not, falls back to Windows Authentication (dev/local only).
+    """
+    base = (
         f"DRIVER={{{config.ESSL_DRIVER}}};"
-        f"SERVER={config.ESSL_SERVER};"
+        f"SERVER={config.ESSL_SERVER},{config.ESSL_PORT};"
         f"DATABASE={config.ESSL_DATABASE};"
-        "Trusted_Connection=yes;"
         "TrustServerCertificate=yes;"
         "Connection Timeout=30;"
     )
+ 
+    if config.ESSL_USERNAME and config.ESSL_PASSWORD:
+        # SQL Server Authentication — used for production server
+        return base + (
+            f"UID={config.ESSL_USERNAME};"
+            f"PWD={config.ESSL_PASSWORD};"
+        )
+    else:
+        # Windows Authentication — used for local dev only
+        return base + "Trusted_Connection=yes;"
+ 
 
 
 @contextmanager
@@ -231,4 +248,73 @@ def fetch_punches(
         "Fetched %d rows from '%s' after cursor (%s, id=%d)",
         len(rows), table_name, last_synced_at, last_log_id
     )
+    return rows
+
+
+
+
+def fetch_devices() -> list[dict]:
+    """
+    Fetches all active devices from ESSL dbo.Devices table.
+
+    Returns a list of device dicts ready to push to HRMS.
+    Called by the device sync cycle — separate from punch sync.
+
+    Fields mapped:
+      DeviceId       → device_code (cast to string)
+      DeviceFName    → device_name (primary name)
+      DevicesName    → device_name fallback if DeviceFName is blank
+      DeviceLocation → door_address
+      DeviceType     → device_type
+      IpAddress      → stored in meta_data
+      LastLogDownloadDate → last_seen_at in meta_data
+    """
+    sql = """
+        SELECT
+            DeviceId,
+            DeviceFName,
+            DevicesName,
+            DeviceLocation,
+            DeviceType,
+            IpAddress,
+            LastLogDownloadDate,
+            Timezone
+        FROM dbo.Devices
+        WHERE DeviceId IS NOT NULL
+        ORDER BY DeviceId ASC
+    """
+    with get_connection() as conn:
+        cursor = conn.execute(sql)
+        columns = [col[0] for col in cursor.description]
+        rows = []
+        for row in cursor.fetchall():
+            r = dict(zip(columns, row))
+
+            # Normalise LastLogDownloadDate to ISO string
+            if isinstance(r.get("LastLogDownloadDate"), datetime):
+                r["LastLogDownloadDate"] = r["LastLogDownloadDate"].strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
+
+            # Build clean device dict
+            device_name = (
+                (r.get("DeviceFName") or "").strip()
+                or (r.get("DevicesName") or "").strip()
+                or f"Device-{r['DeviceId']}"
+            )
+
+            rows.append({
+                "device_code":  str(r["DeviceId"]),
+                "device_name":  device_name,
+                "door_address": (r.get("DeviceLocation") or "").strip() or None,
+                "device_type":  (r.get("DeviceType") or "").strip() or None,
+                "meta_data": {
+                    "ip_address":    r.get("IpAddress"),
+                    "last_log_date": r.get("LastLogDownloadDate"),
+                    "timezone":      r.get("Timezone"),
+                    "essl_device_id": r["DeviceId"],
+                },
+            })
+
+    log.info("Fetched %d devices from ESSL dbo.Devices", len(rows))
     return rows

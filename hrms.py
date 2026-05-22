@@ -34,7 +34,12 @@ def test_connection() -> bool:
         log.info("HRMS API reachable. Status: %s", r.status_code)
         return True
     except Exception as e:
-        log.error("HRMS API unreachable: %s", e)
+        print("ssssssssssssssss ",_url("/health"))
+        log.error(
+            "HRMS API unreachable. URL=%s Error=%s",
+            _url("/health"),
+            str(e),
+        )
         return False
 
 
@@ -105,4 +110,86 @@ def push_punches(punches: list[dict]) -> dict[str, Any]:
 
     raise RuntimeError(
         f"HRMS push failed after {config.RETRY_ATTEMPTS} attempts. Last error: {last_error}"
+    )
+
+
+
+
+def push_devices(devices: list[dict]) -> dict[str, Any]:
+    """
+    POST a list of devices to the HRMS device sync endpoint.
+
+    Expected HRMS endpoint:
+        POST /api/v1/attendance/devices/sync/
+        Body: { "company_id": "<uuid>", "devices": [ {...}, {...} ] }
+
+    Expected HRMS response:
+        {
+            "created": 2,
+            "updated": 8,
+            "errors":  []
+        }
+
+    Same retry + exponential backoff pattern as push_punches().
+    Raises RuntimeError after all retries exhausted.
+    """
+    payload = {
+        "company_id": config.COMPANY_ID,
+        "devices":    devices,
+    }
+
+    attempt    = 0
+    last_error = None
+
+    while attempt < config.RETRY_ATTEMPTS:
+        attempt += 1
+        try:
+            response = _session.post(
+                _url("/devices/sync/"),
+                json=payload,
+                timeout=60,
+            )
+            response.raise_for_status()
+            result = response.json()
+            log.info(
+                "HRMS device sync: created=%d updated=%d (attempt %d)",
+                result.get("created", 0),
+                result.get("updated", 0),
+                attempt,
+            )
+            return result
+
+        except requests.exceptions.Timeout as e:
+            last_error = e
+            log.warning(
+                "Device sync timed out (attempt %d/%d)",
+                attempt, config.RETRY_ATTEMPTS,
+            )
+
+        except requests.exceptions.ConnectionError as e:
+            last_error = e
+            log.warning(
+                "Device sync connection error (attempt %d/%d): %s",
+                attempt, config.RETRY_ATTEMPTS, e,
+            )
+
+        except requests.exceptions.HTTPError as e:
+            last_error = e
+            status_code = e.response.status_code if e.response else "?"
+            body        = e.response.text[:500] if e.response else ""
+            log.error(
+                "Device sync HTTP %s (attempt %d/%d) — %s",
+                status_code, attempt, config.RETRY_ATTEMPTS, body,
+            )
+            if e.response and 400 <= e.response.status_code < 500:
+                raise
+
+        if attempt < config.RETRY_ATTEMPTS:
+            wait = config.RETRY_DELAY_SECONDS * (2 ** (attempt - 1))
+            log.info("Retrying device sync in %ds...", wait)
+            time.sleep(wait)
+
+    raise RuntimeError(
+        f"Device sync failed after {config.RETRY_ATTEMPTS} attempts. "
+        f"Last error: {last_error}"
     )

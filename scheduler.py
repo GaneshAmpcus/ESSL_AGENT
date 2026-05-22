@@ -11,9 +11,10 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 import config
-from sync import run_sync_cycle
+from sync import run_sync_cycle,sync_devices
 from logger import get_logger
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_MISSED
+ 
 
 log = get_logger(__name__)
 
@@ -31,6 +32,18 @@ def build_scheduler() -> BlockingScheduler:
         misfire_grace_time = 60,
     )
 
+    scheduler.add_job(
+        func=sync_devices,
+        trigger=IntervalTrigger(
+            seconds=config.DEVICE_SYNC_INTERVAL_SECONDS
+        ),
+        id="essl_device_sync",
+        name="ESSL → HRMS device sync",
+        coalesce=True,
+        max_instances=1,
+        misfire_grace_time=300,
+    )
+
     # ADD THESE:
     def _on_error(event):
         log.critical("Scheduler job error: %s", event.exception, exc_info=True)
@@ -45,5 +58,10 @@ def build_scheduler() -> BlockingScheduler:
         "Scheduler configured — interval: %ds (%dm)",
         config.SYNC_INTERVAL_SECONDS,
         config.SYNC_INTERVAL_SECONDS // 60,
+    )
+    log.info(
+        "  Device Sync : %ds (%dh)",
+        config.DEVICE_SYNC_INTERVAL_SECONDS,
+        config.DEVICE_SYNC_INTERVAL_SECONDS // 3600,
     )
     return scheduler
